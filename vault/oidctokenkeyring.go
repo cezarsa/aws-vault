@@ -13,6 +13,7 @@ import (
 
 type OIDCTokenKeyring struct {
 	Keyring keyring.Keyring
+	MaxTTL  time.Duration
 }
 
 type OIDCTokenData struct {
@@ -71,9 +72,13 @@ func (o OIDCTokenKeyring) Get(startURL string) (*ssooidc.CreateTokenOutput, erro
 }
 
 func (o OIDCTokenKeyring) Set(startURL string, token *ssooidc.CreateTokenOutput) error {
+	expiresIn := time.Duration(token.ExpiresIn) * time.Second
+	if expiresIn > o.MaxTTL {
+		expiresIn = o.MaxTTL
+	}
 	val := OIDCTokenData{
 		Token:      *token,
-		Expiration: time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
+		Expiration: time.Now().Add(expiresIn),
 	}
 
 	valJson, err := json.Marshal(val)

@@ -15,11 +15,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
-var defaultExpirationWindow = 5 * time.Minute
+var (
+	defaultExpirationWindow  = 5 * time.Minute
+	defaultMaxOIDCExpiration = 8 * time.Hour
+)
 
 func init() {
 	if d, err := time.ParseDuration(os.Getenv("AWS_MIN_TTL")); err == nil {
 		defaultExpirationWindow = d
+	}
+
+	if d, err := time.ParseDuration(os.Getenv("AWS_VAULT_MAX_TOKEN_TTL")); err == nil {
+		defaultMaxOIDCExpiration = d
 	}
 }
 
@@ -179,7 +186,10 @@ func NewSSORoleCredentialsProvider(k keyring.Keyring, config *Config) (aws.Crede
 	}
 
 	if UseSessionCache {
-		ssoRoleCredentialsProvider.OIDCTokenCache = OIDCTokenKeyring{Keyring: k}
+		ssoRoleCredentialsProvider.OIDCTokenCache = OIDCTokenKeyring{
+			Keyring: k,
+			MaxTTL:  defaultMaxOIDCExpiration,
+		}
 		return &CachedSessionProvider{
 			SessionKey: SessionMetadata{
 				Type:        "sso.GetRoleCredentials",
